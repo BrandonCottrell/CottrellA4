@@ -1,11 +1,20 @@
-﻿namespace CottrellA4
+﻿using System.Collections.Generic;
+using System.Net.Http.Headers;
+using System.Security.Cryptography.X509Certificates;
+using System.Text.Json.Serialization;
+using CottrellA4.Models;
+using Newtonsoft.Json;
+
+namespace CottrellA4
 {
     internal class Program
     {
         static void Main(string[] args)
         {
-            string file = "movies.csv";
-            
+            string file = "Data/movies.csv";
+            FileReader reader = new FileReader();
+            JsonReader jsonReader = new JsonReader();
+
 
             if (!File.Exists(file))
             {
@@ -20,6 +29,7 @@
                     Console.WriteLine("1) Add Movie");
                     Console.WriteLine("2) View All Movies");
                     Console.WriteLine("Enter to quit");
+
 
                     // input selection
                     choice = Console.ReadLine();
@@ -83,142 +93,309 @@
 
                     if (choice == "1")
                     {
-                        // Add Movie
-                        // ask user to input movie title
-                        Console.WriteLine("Enter the movie title");
-                        // input title
-                        string movieTitle = Console.ReadLine();
-                        // check for duplicate title
-                        List<string> LowerCaseMovieTitles = MovieTitles.ConvertAll(t => t.ToLower());
-                        if (LowerCaseMovieTitles.Contains(movieTitle.ToLower()))
-                        {
-                            Console.WriteLine("That movie has already been entered");
-                            Console.WriteLine($"Duplicate movie title {movieTitle}");
-                        }
-                        else
-                        {
-                            // generate movie id - use max value in MovieIds + 1
-                            UInt64 movieId = MovieIds.Max() + 1;
-                            // input genres
-                            List<string> genres = new List<string>();
-                            string genre;
-                            do
-                            {
-                                // ask user to enter genre
-                                Console.WriteLine("Enter genre (or done to quit)");
-                                // input genre
-                                genre = Console.ReadLine();
-                                // if user enters "done"
-                                // or does not enter a genre do not add it to list
-                                if (genre != "done" && genre.Length > 0)
-                                {
-                                    genres.Add(genre);
-                                }
-                            } while (genre != "done");
-                            // specify if no genres are entered
-                            if (genres.Count == 0)
-                            {
-                                genres.Add("(no genres listed)");
-                            }
-                            // use "|" as delimeter for genres
-                            string genresString = string.Join("|", genres);
-                            // if there is a comma(,) in the title, wrap it in quotes
-                            movieTitle = movieTitle.IndexOf(',') != -1 ? $"\"{movieTitle}\"" : movieTitle;
-                            // display movie id, title, genres
-                            Console.WriteLine($"{movieId},{movieTitle},{genresString}");
-                            // create file from data
-                            StreamWriter sw = new StreamWriter(file, true);
-                            sw.WriteLine($"{movieId},{movieTitle},{genresString}");
-                            sw.Close();
-                            // add movie details to Lists
-                            MovieIds.Add(movieId);
-                            MovieTitles.Add(movieTitle);
-                            MovieGenres.Add(genresString);
-                            // log transaction
-                            Console.WriteLine($"Movie added");
-                        }
+                        jsonReader.AddMovie(MovieIds,MovieTitles,MovieGenres,file);
                     }
                     else if (choice == "2")
                     {
-                        // Display All Movies
-                        // loop thru Movie Lists
-                        Console.WriteLine("Please make a selection");
-                        Console.WriteLine("1) See # amount of movies");
-                        Console.WriteLine("2) Search by genre");
-                        Console.WriteLine("3) Search by Title Keyword");
-                        Console.WriteLine("4) See all movies");
-                        string seeAll = Console.ReadLine();
-
-                        if (seeAll == "1")
-                        {
-                            Console.WriteLine("How many Movies would you like to see?");
-                            int numberOfMovies = Convert.ToInt32(Console.ReadLine());
-                            for (int i = 0; i < numberOfMovies; i++)
-                            {
-                                // display movie details
-                                Console.WriteLine($"Id: {MovieIds[i]}");
-                                Console.WriteLine($"Title: {MovieTitles[i]}");
-                                Console.WriteLine($"Genre(s): {MovieGenres[i]}");
-                                Console.WriteLine();
-                            }
-                        }
-                        else if (seeAll == "2")
-                        {
-
-                            Console.WriteLine("What genre would you like to see?");
-                            string inputGenre = Console.ReadLine();
-                            for (int i = 0; i < MovieIds.Count; i++)
-                            {
-                                var genre = MovieGenres[i];
-                                if (genre.Contains(inputGenre))
-                                {
-                                    Console.WriteLine($"Id: {MovieIds[i]}");
-                                    Console.WriteLine($"Title: {MovieTitles[i]}");
-                                    Console.WriteLine($"Genre(s): {MovieGenres[i]}");
-                                    Console.WriteLine();
-                                }
-
-                            }
-
-                        }
-                        else if (seeAll == "3")
-                        {
-                            Console.WriteLine("What title Keyword would you like to see?");
-                            string inputTitleKeyword = Console.ReadLine();
-                            for (int i = 0; i < MovieIds.Count; i++)
-                            {
-                                var title = MovieTitles[i];
-                                if (title.Contains(inputTitleKeyword))
-                                {
-                                    Console.WriteLine($"Id: {MovieIds[i]}");
-                                    Console.WriteLine($"Title: {MovieTitles[i]}");
-                                    Console.WriteLine($"Genre(s): {MovieGenres[i]}");
-                                    Console.WriteLine();
-                                }
-
-                            }
-                        }
-                        else if (seeAll == "4")
-                        {
-                            for (int i = 0; i < MovieIds.Count; i++)
-                            {
-                                // display movie details
-                                Console.WriteLine($"Id: {MovieIds[i]}");
-                                Console.WriteLine($"Title: {MovieTitles[i]}");
-                                Console.WriteLine($"Genre(s): {MovieGenres[i]}");
-                                Console.WriteLine();
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine("Not a vailid input");
-                        }
-                            
-
-
+                        jsonReader.viewMovie(MovieIds,MovieTitles,MovieGenres,file);
                     }
                 } while (choice == "1" || choice == "2");
             }
         }
     }
+
+
+    public class JsonReader
+    {
+        public string json = " ";
+
+        public void viewMovie(List<UInt64> MovieIds, List<string> MovieTitles, List<string> MovieGenres, string file)
+        {
+            //The adding to movies seemed to work, the viewing continues to give me issues.
+            Movie m = JsonConvert.DeserializeObject<Movie>(json);
+            UInt64 theId = m.ID;
+            string theTitle = m.Title;
+            string theGenre = m.Genres;
+
+
+
+            // Display All Movies
+            // loop thru Movie Lists
+            Console.WriteLine("Please make a selection");
+            Console.WriteLine("1) See # amount of movies");
+            Console.WriteLine("2) Search by genre");
+            Console.WriteLine("3) Search by Title Keyword");
+            Console.WriteLine("4) See all movies");
+            string seeAll = Console.ReadLine();
+
+            if (seeAll == "1")
+            {
+                Console.WriteLine("How many Movies would you like to see?");
+                int numberOfMovies = Convert.ToInt32(Console.ReadLine());
+                for (int i = 0; i < numberOfMovies; i++)
+                {
+                    // display movie details
+                    Console.WriteLine($"Id: {MovieIds[i]}");
+                    Console.WriteLine($"Title: {MovieTitles[i]}");
+                    Console.WriteLine($"Genre(s): {MovieGenres[i]}");
+                    Console.WriteLine();
+                }
+            }
+            else if (seeAll == "2")
+            {
+
+                Console.WriteLine("What genre would you like to see?");
+                string inputGenre = Console.ReadLine();
+                for (int i = 0; i < MovieIds.Count; i++)
+                {
+                    var genre = MovieGenres[i];
+                    if (genre.Contains(inputGenre))
+                    {
+                        Console.WriteLine($"Id: {MovieIds[i]}");
+                        Console.WriteLine($"Title: {MovieTitles[i]}");
+                        Console.WriteLine($"Genre(s): {MovieGenres[i]}");
+                        Console.WriteLine();
+                    }
+
+                }
+
+            }
+            else if (seeAll == "3")
+            {
+                Console.WriteLine("What title Keyword would you like to see?");
+                string inputTitleKeyword = Console.ReadLine();
+                for (int i = 0; i < MovieIds.Count; i++)
+                {
+                    var title = MovieTitles[i];
+                    if (title.Contains(inputTitleKeyword))
+                    {
+                        Console.WriteLine($"Id: {MovieIds[i]}");
+                        Console.WriteLine($"Title: {MovieTitles[i]}");
+                        Console.WriteLine($"Genre(s): {MovieGenres[i]}");
+                        Console.WriteLine();
+                    }
+
+                }
+            }
+            else if (seeAll == "4")
+            {
+                for (int i = 0; i < MovieIds.Count; i++)
+                {
+                    Console.WriteLine($"Id: {MovieIds[i]}");
+                    Console.WriteLine($"Title: {MovieTitles[i]}");
+                    Console.WriteLine($"Genre(s): {MovieGenres[i]}");
+                    Console.WriteLine();
+                }
+            }
+            else
+            {
+                Console.WriteLine("Not a vailid input");
+            }
+        }
+
+        public void AddMovie(List<UInt64> MovieIds, List<string> MovieTitles, List<string> MovieGenres, string file)
+        {
+            int index = 0;
+            Movie movie = new Movie();
+            //placeholders for vaulues
+            movie.ID = 1;
+            movie.Title = "Title";
+            movie.Genres = "Genres";
+
+            string json = JsonConvert.SerializeObject(movie);
+
+            Console.WriteLine("Enter the movie title");
+            // input title
+            string movieTitle = Console.ReadLine();
+            // check for duplicate title
+            List<string> LowerCaseMovieTitles = MovieTitles.ConvertAll(t => t.ToLower());
+            if (LowerCaseMovieTitles.Contains(movieTitle.ToLower()))
+            {
+                Console.WriteLine("That movie has already been entered");
+                Console.WriteLine($"Duplicate movie title {movieTitle}");
+            }
+            else
+            {
+                // generate movie id - use max value in MovieIds + 1
+                UInt64 movieId = MovieIds.Max() + 1;
+                // input genres
+                List<string> genres = new List<string>();
+                string genre;
+                do
+                {
+                    // ask user to enter genre
+                    Console.WriteLine("Enter genre (or done to quit)");
+                    // input genre
+                    genre = Console.ReadLine();
+                    // if user enters "done"
+                    // or does not enter a genre do not add it to list
+                    if (genre != "done" && genre.Length > 0)
+                    {
+                        genres.Add(genre);
+                    }
+                } while (genre != "done");
+                // specify if no genres are entered
+                if (genres.Count == 0)
+                {
+                    genres.Add("(no genres listed)");
+                }
+                // use "|" as delimeter for genres
+                string genresString = string.Join("|", genres);
+                // if there is a comma(,) in the title, wrap it in quotes
+                movieTitle = movieTitle.IndexOf(',') != -1 ? $"\"{movieTitle}\"" : movieTitle;
+                // display movie id, title, genres
+                Console.WriteLine($"{movieId},{movieTitle},{genresString}");
+                // create file from data
+                StreamWriter sw = new StreamWriter(file, true);
+                sw.WriteLine($"{movieId},{movieTitle},{genresString}");
+                sw.Close();
+                // add movie details to Lists
+                MovieIds.Add(movieId);
+                MovieTitles.Add(movieTitle);
+                MovieGenres.Add(genresString);
+                // log transaction
+                Console.WriteLine($"Movie added");
+            }
+        }
+    }
+
+
+
+
+    //public class FileReader 
+    //{
+    //    public void viewMovie(List<UInt64> MovieIds, List<string> MovieTitles, List<string> MovieGenres, string file)
+    //    {
+    //        // Display All Movies
+    //        // loop thru Movie Lists
+    //        Console.WriteLine("Please make a selection");
+    //        Console.WriteLine("1) See # amount of movies");
+    //        Console.WriteLine("2) Search by genre");
+    //        Console.WriteLine("3) Search by Title Keyword");
+    //        Console.WriteLine("4) See all movies");
+    //        string seeAll = Console.ReadLine();
+
+    //        if (seeAll == "1")
+    //        {
+    //            Console.WriteLine("How many Movies would you like to see?");
+    //            int numberOfMovies = Convert.ToInt32(Console.ReadLine());
+    //            for (int i = 0; i < numberOfMovies; i++)
+    //            {
+    //                // display movie details
+    //                Console.WriteLine($"Id: {MovieIds[i]}");
+    //                Console.WriteLine($"Title: {MovieTitles[i]}");
+    //                Console.WriteLine($"Genre(s): {MovieGenres[i]}");
+    //                Console.WriteLine();
+    //            }
+    //        }
+    //        else if (seeAll == "2")
+    //        {
+
+    //            Console.WriteLine("What genre would you like to see?");
+    //            string inputGenre = Console.ReadLine();
+    //            for (int i = 0; i < MovieIds.Count; i++)
+    //            {
+    //                var genre = MovieGenres[i];
+    //                if (genre.Contains(inputGenre))
+    //                {
+    //                    Console.WriteLine($"Id: {MovieIds[i]}");
+    //                    Console.WriteLine($"Title: {MovieTitles[i]}");
+    //                    Console.WriteLine($"Genre(s): {MovieGenres[i]}");
+    //                    Console.WriteLine();
+    //                }
+
+    //            }
+
+    //        }
+    //        else if (seeAll == "3")
+    //        {
+    //            Console.WriteLine("What title Keyword would you like to see?");
+    //            string inputTitleKeyword = Console.ReadLine();
+    //            for (int i = 0; i < MovieIds.Count; i++)
+    //            {
+    //                var title = MovieTitles[i];
+    //                if (title.Contains(inputTitleKeyword))
+    //                {
+    //                    Console.WriteLine($"Id: {MovieIds[i]}");
+    //                    Console.WriteLine($"Title: {MovieTitles[i]}");
+    //                    Console.WriteLine($"Genre(s): {MovieGenres[i]}");
+    //                    Console.WriteLine();
+    //                }
+
+    //            }
+    //        }
+    //        else if (seeAll == "4")
+    //        {
+    //            for (int i = 0; i < MovieIds.Count; i++)
+    //            {
+    //                // display movie details
+    //                Console.WriteLine($"Id: {MovieIds[i]}");
+    //                Console.WriteLine($"Title: {MovieTitles[i]}");
+    //                Console.WriteLine($"Genre(s): {MovieGenres[i]}");
+    //                Console.WriteLine();
+    //            }
+    //        }
+    //        else
+    //        {
+    //            Console.WriteLine("Not a vailid input");
+    //        }
+    //    }
+    //    public void AddMovie(List<UInt64> MovieIds, List<string> MovieTitles, List<string> MovieGenres, string file)
+    //    {
+           
+
+    //        Console.WriteLine("Enter the movie title");
+    //        // input title
+    //        string movieTitle = Console.ReadLine();
+    //        // check for duplicate title
+    //        List<string> LowerCaseMovieTitles = MovieTitles.ConvertAll(t => t.ToLower());
+    //        if (LowerCaseMovieTitles.Contains(movieTitle.ToLower()))
+    //        {
+    //            Console.WriteLine("That movie has already been entered");
+    //            Console.WriteLine($"Duplicate movie title {movieTitle}");
+    //        }
+    //        else
+    //        {
+    //            // generate movie id - use max value in MovieIds + 1
+    //            UInt64 movieId = MovieIds.Max() + 1;
+    //            // input genres
+    //            List<string> genres = new List<string>();
+    //            string genre;
+    //            do
+    //            {
+    //                // ask user to enter genre
+    //                Console.WriteLine("Enter genre (or done to quit)");
+    //                // input genre
+    //                genre = Console.ReadLine();
+    //                // if user enters "done"
+    //                // or does not enter a genre do not add it to list
+    //                if (genre != "done" && genre.Length > 0)
+    //                {
+    //                    genres.Add(genre);
+    //                }
+    //            } while (genre != "done");
+    //            // specify if no genres are entered
+    //            if (genres.Count == 0)
+    //            {
+    //                genres.Add("(no genres listed)");
+    //            }
+    //            // use "|" as delimeter for genres
+    //            string genresString = string.Join("|", genres);
+    //            // if there is a comma(,) in the title, wrap it in quotes
+    //            movieTitle = movieTitle.IndexOf(',') != -1 ? $"\"{movieTitle}\"" : movieTitle;
+    //            // display movie id, title, genres
+    //            Console.WriteLine($"{movieId},{movieTitle},{genresString}");
+    //            // create file from data
+    //            StreamWriter sw = new StreamWriter(file, true);
+    //            sw.WriteLine($"{movieId},{movieTitle},{genresString}");
+    //            sw.Close();
+    //            // add movie details to Lists
+    //            MovieIds.Add(movieId);
+    //            MovieTitles.Add(movieTitle);
+    //            MovieGenres.Add(genresString);
+    //            // log transaction
+    //            Console.WriteLine($"Movie added");
+    //        }
+    //    }
+    //}
 }
